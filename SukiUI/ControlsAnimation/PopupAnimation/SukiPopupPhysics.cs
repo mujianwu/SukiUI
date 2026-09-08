@@ -416,16 +416,7 @@ namespace SukiUI.ControlsAnimation
         }
 
         private static void StepSpring(ref double x, ref double v, double target, double dt, double omega, double decay)
-        {
-            int steps = Math.Max(1, (int)Math.Ceiling(dt / 0.008));
-            double h = dt / steps;
-            for (int i = 0; i < steps; i++)
-            {
-                double accel = -omega * omega * (x - target) - decay * v;
-                v += accel * h;
-                x += v * h;
-            }
-        }
+            => SukiSpring.Step(ref x, ref v, target, dt, omega, decay);
 
         // ---- Item cascade ----------------------------------------------------------
 

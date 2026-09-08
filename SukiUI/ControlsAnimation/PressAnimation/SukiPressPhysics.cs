@@ -248,17 +248,7 @@ namespace SukiUI.ControlsAnimation
             Math.Min((now - _start).TotalMilliseconds / _duration.TotalMilliseconds, 1.0);
 
         private void StepSpring(double dt)
-        {
-            int steps = Math.Max(1, (int)Math.Ceiling(dt / 0.008));
-            double h = dt / steps;
-            for (int i = 0; i < steps; i++)
-            {
-                double accel = -_preset.SpringOmega * _preset.SpringOmega * (_springX - _springTarget)
-                               - _preset.SpringDecay * _springV;
-                _springV += accel * h;
-                _springX += _springV * h;
-            }
-        }
+            => SukiSpring.Step(ref _springX, ref _springV, _springTarget, dt, _preset.SpringOmega, _preset.SpringDecay);
 
         private double ReadScale() =>
             _element.RenderTransform is ScaleTransform transform ? transform.ScaleX : 1.0;
