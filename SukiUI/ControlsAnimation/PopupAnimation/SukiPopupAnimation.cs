@@ -10,6 +10,9 @@ namespace SukiUI.ControlsAnimation
     /// loop (see <see cref="SukiPopupProfile"/> for the calibrated feels). Enable it with
     /// <c>SukiPopupAnimation.Enable="True"</c> from a style setter and optionally pick a
     /// feel with <c>SukiPopupAnimation.Preset</c> (ComboBox by default).
+    /// The active profile is resolved per open/close through <see cref="SukiAnimationTheme.Current"/>,
+    /// so a live profile switch (or a Preset change) applies to the next transition without
+    /// tearing down the engine's popup wiring.
     /// Template contract: the host's template must contain a <c>Popup</c> named
     /// <c>PART_SukiPopup</c> whose content root is a control named
     /// <c>PART_LayoutTransform</c> (the animated root), with an optional
@@ -31,7 +34,6 @@ namespace SukiUI.ControlsAnimation
         static SukiPopupAnimation()
         {
             EnableProperty.Changed.AddClassHandler<TemplatedControl>(OnEnableChanged);
-            PresetProperty.Changed.AddClassHandler<TemplatedControl>(OnPresetChanged);
         }
 
         public static bool GetEnable(TemplatedControl element) => element.GetValue(EnableProperty);
@@ -53,7 +55,10 @@ namespace SukiUI.ControlsAnimation
                     Debug.WriteLine($"SukiPopupAnimation: no host adapter for '{element.GetType().Name}' — Enable ignored.");
                     return;
                 }
-                var physics = new SukiPopupPhysics(element, SukiPopupProfile.For(GetPreset(element)), hostAdapter);
+                // Profile resolved per open/close through the theme (live switches and Preset
+                // changes apply to the next transition, keeping the popup wiring alive).
+                var physics = new SukiPopupPhysics(element,
+                    () => SukiAnimationTheme.Current.Popup[GetPreset(element)], hostAdapter);
                 element.SetValue(PhysicsProperty, physics);
             }
             else
@@ -61,19 +66,6 @@ namespace SukiUI.ControlsAnimation
                 element.GetValue(PhysicsProperty)?.Dispose();
                 element.SetValue(PhysicsProperty, null);
             }
-        }
-
-        // Preset swapped at runtime (style change): the wiring must stay alive, so dispose
-        // and recreate immediately (same shape as Enable, different from the lazy press).
-        private static void OnPresetChanged(TemplatedControl element, AvaloniaPropertyChangedEventArgs e)
-        {
-            if (element.GetValue(EnableProperty) is not true)
-                return;
-            element.GetValue(PhysicsProperty)?.Dispose();
-            if (SukiPopupHosts.Resolve(element) is not { } hostAdapter)
-                return;
-            var physics = new SukiPopupPhysics(element, SukiPopupProfile.For(GetPreset(element)), hostAdapter);
-            element.SetValue(PhysicsProperty, physics);
         }
     }
 }

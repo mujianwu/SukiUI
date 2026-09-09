@@ -71,7 +71,8 @@ namespace SukiUI.ControlsAnimation
     internal sealed class SukiPopupPhysics
     {
         private readonly TemplatedControl _host;
-        private readonly SukiPopupProfile _profile;
+        private readonly Func<SukiPopupProfile> _getProfile;
+        private SukiPopupProfile _profile;              // snapshot per open/close, re-read at entry
         private readonly ISukiPopupHost _hostAdapter;
 
         private Popup? _popup;
@@ -102,14 +103,15 @@ namespace SukiUI.ControlsAnimation
         // Outside-press dismissal wiring: the engine owns the popup lifecycle.
         private TopLevel? _subscribedTopLevel;
 
-        internal SukiPopupPhysics(TemplatedControl host, SukiPopupProfile profile, ISukiPopupHost hostAdapter)
+        internal SukiPopupPhysics(TemplatedControl host, Func<SukiPopupProfile> getProfile, ISukiPopupHost hostAdapter)
         {
             _host = host;
-            _profile = profile;
+            _getProfile = getProfile;
+            _profile = getProfile();
             _hostAdapter = hostAdapter;
-            _x = _xTarget = profile.ClosedScaleX;
-            _y = _yTarget = profile.ClosedScaleY;
-            _opacityDuration = profile.OpenOpacityDuration;
+            _x = _xTarget = _profile.ClosedScaleX;
+            _y = _yTarget = _profile.ClosedScaleY;
+            _opacityDuration = _profile.OpenOpacityDuration;
 
             _host.PropertyChanged += OnHostPropertyChanged;
             _host.TemplateApplied += OnTemplateApplied;
@@ -121,8 +123,8 @@ namespace SukiUI.ControlsAnimation
         }
 
         /// <summary>
-        /// Disable/detach: unwire everything, reset poses and — the intended behavior of the
-        /// original disable path — leave the popup functional without animation.
+        /// Disable/detach: unwire everything, reset poses and leave the popup functional
+        /// without animation.
         /// </summary>
         internal void Dispose()
         {
@@ -228,6 +230,7 @@ namespace SukiUI.ControlsAnimation
 
         private void Open()
         {
+            _profile = _getProfile();   // re-resolve at transition start: a live switch never touches a running one
             if (_popup is not { } popup)
                 return;
             bool wasOpen = popup.IsOpen;
@@ -265,6 +268,7 @@ namespace SukiUI.ControlsAnimation
 
         private void Close()
         {
+            _profile = _getProfile();   // re-resolve at transition start: a live switch never touches a running one
             if (_popup is not { } popup)
                 return;
             if (!popup.IsOpen)
@@ -369,7 +373,6 @@ namespace SukiUI.ControlsAnimation
             double dt = Math.Min(SukiTicker.ElapsedSeconds(_lastTick), 0.05);
             _lastTick = SukiTicker.Timestamp;
 
-            // The close spring is faster than the open spring; both share zeta = 0.65.
             double omega = _closing ? _profile.CloseSpringOmega : _profile.OpenSpringOmega;
             double decay = _closing ? _profile.CloseSpringDecay : _profile.OpenSpringDecay;
             StepSpring(ref _x, ref _xv, _xTarget, dt, omega, decay);
@@ -459,8 +462,7 @@ namespace SukiUI.ControlsAnimation
         {
             if (_itemsPresenter is not { } presenter || presenter.Panel is not Panel panel)
                 return Array.Empty<Control>();
-            // Generic: every child of the items panel is a container to cascade (for a
-            // ComboBox these are exactly the ComboBoxItem containers — historical behavior).
+            // Generic: every child of the items panel is a container to cascade.
             return panel.Children.ToArray();
         }
 

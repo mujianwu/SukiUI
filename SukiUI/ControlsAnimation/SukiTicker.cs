@@ -11,10 +11,9 @@ namespace SukiUI.ControlsAnimation
 {
     /// <summary>
     /// One shared frame loop per <see cref="TopLevel"/> for the whole press/popup/dialog
-    /// animation subsystem — the equivalent of the single synchronized clock that drives
-    /// XAML Transitions, replacing the previous one-<see cref="DispatcherTimer"/>-per-control
-    /// model. All animated controls register a callback here; exactly one callback fires per
-    /// rendered frame while at least one subscriber is active, and zero when nothing animates.
+    /// animation subsystem. All animated controls register a callback here; exactly one
+    /// callback fires per rendered frame while at least one subscriber is active, and zero
+    /// when nothing animates.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -39,9 +38,8 @@ namespace SukiUI.ControlsAnimation
     /// </remarks>
     public static class SukiTicker
     {
-        // Safety switch: set to false to drive every TopLevel with one shared 16ms
-        // DispatcherTimer instead of RequestAnimationFrame (still a N -> 1 improvement
-        // over the per-control timers this class replaces).
+        // Safety switch: set to false to drive every TopLevel with one shared
+        // 16ms DispatcherTimer instead of RequestAnimationFrame.
         private const bool UseRequestAnimationFrame = true;
 
         private static readonly ConditionalWeakTable<TopLevel, TickerState> States = new();
@@ -105,7 +103,7 @@ namespace SukiUI.ControlsAnimation
             private readonly List<Token> _subscribers = new();
             private readonly List<Token> _pending = new();
             private bool _registrationInFlight; // a RAF registration (or timer tick) will deliver Dispatch
-            private DispatcherTimer? _fallbackTimer; // fallback driver only
+            private DispatcherTimer? _fallbackTimer;
 
             public Token Add(TopLevel topLevel, Action<TimeSpan> onFrame)
             {
@@ -162,8 +160,8 @@ namespace SukiUI.ControlsAnimation
 
                 // Forward iteration over the live list: removals only flag their token and
                 // additions only touch _pending, so the loop needs no copy — zero allocation.
-                // A throwing subscriber is dropped (like a crashed per-control timer would
-                // have been) so one broken behavior can never stall the whole frame loop.
+                // A throwing subscriber is dropped so one broken behavior can never stall
+                // the whole frame loop.
                 var now = Now;
                 long sw = Stopwatch.GetTimestamp();
                 for (int i = 0; i < _subscribers.Count; i++)

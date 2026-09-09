@@ -36,6 +36,14 @@ public partial class SukiUIDemoView : SukiWindow
         vm.BackgroundStyle = cStyle;
     }
 
+    private void AnimationProfileMenuItem_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not SukiUIDemoViewModel vm) return;
+        if (e.Source is not MenuItem mItem) return;
+        if (mItem.DataContext is not AnimationProfileChoice choice) return;
+        vm.UseAnimationProfile(choice);
+    }
+
     private void InputElement_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         IsMenuVisible = !IsMenuVisible;

@@ -30,7 +30,7 @@ namespace SukiUI.Controls
         private ContentControl? _dialogContent;
 
         // All animation state, transitions and the shake spring live over there.
-        private readonly SukiDialogPhysics _anim = new(SukiDialogProfile.For(SukiDialogPreset.Default));
+        private readonly SukiDialogPhysics _anim = new(() => SukiAnimationTheme.Current.Dialog[SukiDialogPreset.Default]);
 
         private ISukiDialogManager? _attachedManager;
         private bool _isAttachedToLogicalTree;
@@ -152,7 +152,7 @@ namespace SukiUI.Controls
                 {
                     var click = e.GetPosition(this);
                     double direction = click.Y - Bounds.Height / 2.0 >= 0.0 ? -1.0 : 1.0;
-                    _anim.StartShake(content, direction * SukiDialogProfile.Default.ShakeImpulse);
+                    _anim.StartShake(content, direction * SukiAnimationTheme.Current.Dialog[SukiDialogPreset.Default].ShakeImpulse);
                 }
                 return;
             }
@@ -266,12 +266,11 @@ namespace SukiUI.Controls
         // always a fixed rise from below (see SukiDialogProfile.EmergenceVertical).
         private (double Dx, double Dy) EmergenceOffset()
         {
+            var profile = SukiAnimationTheme.Current.Dialog[SukiDialogPreset.Default];
             double dx = 0.0;
             if (GetPointerPositionInHost() is { } click)
-                dx = Math.Clamp(click.X - Bounds.Width / 2.0,
-                    -SukiDialogProfile.Default.EmergenceHorizontalMax,
-                    SukiDialogProfile.Default.EmergenceHorizontalMax);
-            return (dx, SukiDialogProfile.Default.EmergenceVertical);
+                dx = Math.Clamp(click.X - Bounds.Width / 2.0, -profile.EmergenceHorizontalMax, profile.EmergenceHorizontalMax);
+            return (dx, profile.EmergenceVertical);
         }
 
         private Point? GetPointerPositionInHost()

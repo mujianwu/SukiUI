@@ -25,11 +25,9 @@ namespace SukiUI.ControlsAnimation
     /// </summary>
     public sealed class SukiDialogPhysics : IDisposable
     {
-        private readonly SukiDialogProfile _profile;
+        private readonly Func<SukiDialogProfile> _getProfile;
+        private SukiDialogProfile _profile;             // snapshot per open/close/shake, re-read at entry
 
-        // The DoF surface (PART_DialogSurface, in the SukiDialog's ControlTheme, NOT the
-        // host template — hence the per-open visual-tree walk). Re-checked every
-        // PlayOpen: a re-applied template brings a fresh, uninitialized surface.
         private Border? _surface;
 
         // Open/close transitions built per opening, kept so the shake can detach and
@@ -41,9 +39,10 @@ namespace SukiUI.ControlsAnimation
         private double _shakeY, _shakeV, _shakeScale;
         private long _shakeLastTick;
 
-        public SukiDialogPhysics(SukiDialogProfile profile)
+        public SukiDialogPhysics(Func<SukiDialogProfile> getProfile)
         {
-            _profile = profile;
+            _getProfile = getProfile;
+            _profile = getProfile();
         }
 
         /// <summary>
@@ -54,6 +53,7 @@ namespace SukiUI.ControlsAnimation
         /// </summary>
         public void PlayOpen(ContentControl content, double width, double height, (double Dx, double Dy) emergence)
         {
+            _profile = _getProfile();   // re-resolve at choreography start: a live switch never touches a running one
             EnsureDialogSurface(content);
 
             double area = width * height;
@@ -87,6 +87,7 @@ namespace SukiUI.ControlsAnimation
         /// </summary>
         public void PlayClose(ContentControl content)
         {
+            _profile = _getProfile();   // re-resolve at choreography start
             // A shake leaves the transitions detached (it owns the transform while it
             // runs): restore them so the close actually animates instead of snapping.
             StopShake();
@@ -103,6 +104,7 @@ namespace SukiUI.ControlsAnimation
         /// </summary>
         public void StartShake(ContentControl content, double initialVelocity)
         {
+            _profile = _getProfile();   // re-resolve the active profile at shake start
             StopShake();
             var (ty, scale) = ReadCurrentTransform(content);
             _shakeY = ty;
@@ -112,8 +114,7 @@ namespace SukiUI.ControlsAnimation
             content.Transitions = null;
 
             // One synchronous tick primes the very first transform write, which schedules
-            // the frame the rest of the shake rides on (a frame only renders when
-            // something invalidates).
+            // the frame the rest of the shake rides on.
             _shakeTicker = SukiTicker.Subscribe(content, _ => ShakeTick(content));
             ShakeTick(content);
         }
@@ -219,7 +220,6 @@ namespace SukiUI.ControlsAnimation
         {
             WriteTransform(content, offset.Dx, offset.Dy, scale);
             content.Opacity = opacity;
-            // Depth of field goes to the content surface, never the content control itself.
             if (_surface is { } surface)
                 surface.Effect = new BlurEffect { Radius = blur };
         }

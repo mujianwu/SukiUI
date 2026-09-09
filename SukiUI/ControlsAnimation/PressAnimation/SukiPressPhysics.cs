@@ -10,8 +10,7 @@ namespace SukiUI.ControlsAnimation
     /// <summary>
     /// The complete hover + press -&gt; release scale behavior, shared by every control
     /// enabled through <see cref="SukiPress"/> (see <see cref="SukiPressProfile"/>),
-    /// driven frame by frame by the single shared
-    /// <see cref="SukiTicker"/> loop instead of one DispatcherTimer per control:
+    /// driven frame by frame by the single shared <see cref="SukiTicker"/> loop:
     /// hover: gentle scale to HoverScale while the pointer is over the control;
     /// phase 1 (PressDuration, elastic-in): down to the press depth on any click, always
     /// played to completion even on the shortest press;
@@ -32,9 +31,13 @@ namespace SukiUI.ControlsAnimation
         private enum Phase { None, Press, Deep, Hover, Release }
 
         private readonly InputElement _element;
-        private readonly SukiPressProfile _preset;
+        private readonly Func<SukiPressProfile> _getProfile;
         private readonly Func<double> _getPressDepth;
         private IDisposable? _ticker;
+
+        // Snapshot of the active calibration, re-read at every gesture entry so a live
+        // SukiAnimationTheme switch applies to the NEXT gesture, never mid-animation.
+        private SukiPressProfile _preset;
 
         private Phase _phase;
         private bool _pressed;
@@ -44,18 +47,17 @@ namespace SukiUI.ControlsAnimation
         private TimeSpan _start, _duration;
         private Easing _ease = HoverEase;
 
-        // Release spring state: x'' = -omega^2(x - target) - decay x' (semi-implicit Euler,
-        // fixed substeps), exactly as before — only the driver changed.
         private double _springX = 1.0, _springV, _springTarget = 1.0;
         private TimeSpan _springLast;
 
         /// <summary>Creates the engine for one control. Press depth is read lazily so a
         /// <c>SukiPress.PressDepth</c> override is honored from the first frame.</summary>
-        public SukiPressPhysics(InputElement element, SukiPressProfile preset, Func<double> getPressDepth)
+        public SukiPressPhysics(InputElement element, Func<SukiPressProfile> getProfile, Func<double> getPressDepth)
         {
             _element = element;
-            _preset = preset;
+            _getProfile = getProfile;
             _getPressDepth = getPressDepth;
+            _preset = getProfile();
         }
 
         private double PressDepth => _getPressDepth();
@@ -66,6 +68,7 @@ namespace SukiUI.ControlsAnimation
         /// mid-bounce re-click) and starts phase 1 from the pose currently on screen.</summary>
         public void Press()
         {
+            _preset = _getProfile();
             _pressed = true;
             _phase = Phase.Press;
             _from = Math.Clamp(ReadScale(), DeepFloor, _preset.HoverScale);
@@ -80,6 +83,7 @@ namespace SukiUI.ControlsAnimation
         /// start the spring by itself; during the deep stretch or the hold it springs back now.</summary>
         public void Release()
         {
+            _preset = _getProfile();
             _pressed = false;
 
             // Phase 1 still running: its completion tick will start the spring by itself;
@@ -93,6 +97,7 @@ namespace SukiUI.ControlsAnimation
         /// <summary>Pointer entered. Mid-bounce: physically move the spring's resting point up.</summary>
         public void PointerEnter()
         {
+            _preset = _getProfile();
             switch (_phase)
             {
                 case Phase.Release:
@@ -109,6 +114,7 @@ namespace SukiUI.ControlsAnimation
         /// <summary>Pointer exited. Mid-bounce: physically move the resting point down.</summary>
         public void PointerExit()
         {
+            _preset = _getProfile();
             switch (_phase)
             {
                 case Phase.Release:

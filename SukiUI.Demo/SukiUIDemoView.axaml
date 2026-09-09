@@ -271,6 +271,27 @@
                           ToggleType="CheckBox" />
             </MenuItem>
 
+            <MenuItem Header="Animation _Mode">
+                <MenuItem.Icon>
+                    <avalonia:MaterialIcon Kind="Play" />
+                </MenuItem.Icon>
+                <MenuItem Click="AnimationProfileMenuItem_OnClick"
+                          Header="_Switch To..."
+                          ItemsSource="{Binding AnimationProfiles}">
+                    <MenuItem.DataTemplates>
+                        <DataTemplate DataType="{x:Type demo:AnimationProfileChoice}">
+                            <DockPanel>
+                                <avalonia:MaterialIcon Width="16"
+                                                       Height="16"
+                                                       DockPanel.Dock="Left"
+                                                       IsVisible="{Binding IsSelected}"
+                                                       Kind="Check" />
+                                <TextBlock Text="{Binding DisplayName}" />
+                            </DockPanel>
+                        </DataTemplate>
+                    </MenuItem.DataTemplates>
+                </MenuItem>
+            </MenuItem>
 
         </MenuItem>
         <MenuItem Header="Theme">

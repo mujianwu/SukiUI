@@ -2,46 +2,50 @@ using System;
 
 namespace SukiUI.ControlsAnimation
 {
-    /// <summary>
-    /// XAML-selectable popup feels (<c>SukiPopupAnimation.Preset="..."</c>). Each member
-    /// resolves to a calibrated <see cref="SukiPopupProfile"/> instance.
-    /// </summary>
     public enum SukiPopupPreset
     {
         ComboBox
     }
 
-    /// <summary>
-    /// Calibrated constants of the popup open/close animation chain, one profile per
-    /// <see cref="SukiPopupPreset"/>. The open/close motion is a pair of damped springs
-    /// (scale X/Y) sharing zeta = 0.65 — a single subtle overshoot (~7% of travel) and a
-    /// very smooth settle — plus an opacity lerp, a velocity-driven motion blur on open
-    /// (dissolution blur on close) and a staggered item cascade.
-    /// </summary>
     public sealed record SukiPopupProfile(
+        // scale the popup is collapsed to on X just before opening
         double ClosedScaleX,
+        // scale the popup is collapsed to on Y just before opening
         double ClosedScaleY,
+        // scale the popup collapses toward on X at the end of the close
         double CloseScaleX,
+        // scale the popup collapses toward on Y at the end of the close
         double CloseScaleY,
+        // angular frequency of the open spring
         double OpenSpringOmega,
+        // damping of the open spring
         double OpenSpringDecay,
+        // angular frequency of the close spring
         double CloseSpringOmega,
+        // damping of the close spring
         double CloseSpringDecay,
+        // opacity fade-in duration on open
         TimeSpan OpenOpacityDuration,
+        // opacity fade-out duration on close
         TimeSpan CloseOpacityDuration,
+        // motion blur: multiplier applied to the popup's own expansion speed
         double BlurFactor,
+        // motion blur: cap on the open blur radius
         double MaxBlurRadius,
+        // motion blur: fixed radius held while the popup dissolves on close
         double CloseBlurRadius,
+        // cascade: delay before the first item starts fading in (ms)
         double CascadeInitialDelayMs,
+        // cascade: total time the staggered fade is spread over (ms)
         double CascadeDurationMs,
+        // cascade: above this many items the cascade is skipped
         int CascadeMaxItems,
+        // cascade: per-item fade-in stagger as a function of the item count (ms)
         Func<int, double> CascadeStaggerMs)
     {
-        /// <summary>
-        /// ComboBox feel: the historical calibration of the SukiUI drop-down — open spring
-        /// omega 16 / decay 20.8 (zeta 0.65), close-only collapse target only 40% of the open
-        /// travel with a spring ~40% faster (omega 26.7 / decay 34.7, same zeta).
-        /// </summary>
+        #region Normal
+
+        // Softly bouncy open with a subtle overshoot, quicker partial collapse on close, motion blur on the spring speed, and a staggered item cascade.
         public static readonly SukiPopupProfile ComboBox = new(
             ClosedScaleX: 0.92,
             ClosedScaleY: 0.72,
@@ -66,16 +70,32 @@ namespace SukiUI.ControlsAnimation
                 _ => 40.0 - (count - 4) * (40.0 - 20.0) / (10.0 - 4.0)
             });
 
-        /// <summary>
-        /// Resolves the XAML-selectable preset to its calibrated profile. Every enum
-        /// member is listed explicitly — when adding a member, add its case here and
-        /// keep names and calibrations in sync; invalid enum values throw.
-        /// </summary>
-#pragma warning disable CS8524 // the exhaustive member list is intentional; unnamed enum values throw
-        public static SukiPopupProfile For(SukiPopupPreset preset) => preset switch
+        public static readonly SukiPresetTable<SukiPopupPreset, SukiPopupProfile> Normal =
+            new((SukiPopupPreset.ComboBox, ComboBox));
+
+        #endregion
+
+        #region Lite
+
+        // Critically damped open (no overshoot), shorter fades, no blur, and every item appears at once.
+        public static readonly SukiPopupProfile ComboBoxLite = ComboBox with
         {
-            SukiPopupPreset.ComboBox => ComboBox,
+            OpenSpringOmega = 20.0,
+            OpenSpringDecay = 40.0,
+            CloseSpringOmega = 26.7,
+            CloseSpringDecay = 53.4,
+            OpenOpacityDuration = TimeSpan.FromMilliseconds(120),
+            CloseOpacityDuration = TimeSpan.FromMilliseconds(100),
+            BlurFactor = 0.0,
+            MaxBlurRadius = 0.0,
+            CloseBlurRadius = 0.0,
+            CascadeInitialDelayMs = 0.0,
+            CascadeMaxItems = 0,
         };
-#pragma warning restore CS8524
+
+        public static readonly SukiPresetTable<SukiPopupPreset, SukiPopupProfile> Lite =
+            new((SukiPopupPreset.ComboBox, ComboBoxLite));
+
+        #endregion
     }
 }

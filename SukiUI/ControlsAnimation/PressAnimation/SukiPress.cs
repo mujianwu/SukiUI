@@ -13,6 +13,9 @@ namespace SukiUI.ControlsAnimation
     /// Enable it with <c>SukiPress.Enable="True"</c> (from a style setter), pick a feel
     /// with <c>SukiPress.Preset</c> (Button by default, ComboBox softer) and optionally
     /// override the depth with <c>SukiPress.PressDepth</c> (unset = the profile's default).
+    /// The active profile and preset are resolved per gesture through
+    /// <see cref="SukiAnimationTheme.Current"/>, so a live profile switch applies to the next
+    /// press and an Enable/Preset reorder in XAML stays order-independent.
     /// </summary>
     public class SukiPress
     {
@@ -32,7 +35,6 @@ namespace SukiUI.ControlsAnimation
         static SukiPress()
         {
             EnableProperty.Changed.AddClassHandler<InputElement>(OnEnableChanged);
-            PresetProperty.Changed.AddClassHandler<InputElement>(OnPresetChanged);
         }
 
         public static bool GetEnable(InputElement element) => element.GetValue(EnableProperty);
@@ -43,14 +45,6 @@ namespace SukiUI.ControlsAnimation
 
         public static double GetPressDepth(InputElement element) => element.GetValue(PressDepthProperty);
         public static void SetPressDepth(InputElement element, double value) => element.SetValue(PressDepthProperty, value);
-
-        // Preset swapped at runtime (style change): drop the engine — it is recreated lazily
-        // on the next gesture with the new calibration. Enable/Preset order in XAML doesn't matter.
-        private static void OnPresetChanged(InputElement element, AvaloniaPropertyChangedEventArgs e)
-        {
-            element.GetValue(PhysicsProperty)?.Dispose();
-            element.SetValue(PhysicsProperty, null);
-        }
 
         private static void OnEnableChanged(InputElement element, AvaloniaPropertyChangedEventArgs e)
         {
@@ -90,13 +84,17 @@ namespace SukiUI.ControlsAnimation
             var physics = element.GetValue(PhysicsProperty);
             if (physics is null)
             {
-                physics = new SukiPressPhysics(element, SukiPressProfile.For(GetPreset(element)), () =>
-                {
-                    double depth = GetPressDepth(element);
-                    return double.IsNaN(depth)
-                        ? SukiPressProfile.For(GetPreset(element)).DefaultPressDepth
-                        : depth;
-                });
+                // Profile and press depth are both resolved per gesture through the theme, so a
+                // live switch or a Preset/PressDepth change applies to the next gesture, not mid-flight.
+                physics = new SukiPressPhysics(element,
+                    () => SukiAnimationTheme.Current.Press[GetPreset(element)],
+                    () =>
+                    {
+                        double depth = GetPressDepth(element);
+                        return double.IsNaN(depth)
+                            ? SukiAnimationTheme.Current.Press[GetPreset(element)].DefaultPressDepth
+                            : depth;
+                    });
                 element.SetValue(PhysicsProperty, physics);
             }
             return physics;

@@ -3,6 +3,7 @@ using Avalonia.Collections;
 using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SukiUI.ControlsAnimation;
 using SukiUI.Demo.Features;
 using SukiUI.Demo.Features.CustomTheme;
 using SukiUI.Demo.Features.Theming;
@@ -50,6 +51,11 @@ namespace SukiUI.Demo
             _theming.BackgroundTransitionsChanged += enabled => TransitionsEnabled = enabled;
 
             BackgroundStyles = new AvaloniaList<SukiBackgroundStyle>(Enum.GetValues<SukiBackgroundStyle>());
+            AnimationProfiles = new AvaloniaList<AnimationProfileChoice>
+            {
+                new("Normal", SukiAnimationProfile.Normal) { IsSelected = true },
+                new("Lite", SukiAnimationProfile.Lite),
+            };
             _theme = SukiTheme.GetInstance();
 
             // Subscribe to the navigation service (when a page navigation is requested)
@@ -87,6 +93,8 @@ namespace SukiUI.Demo
 
         public IAvaloniaReadOnlyList<SukiBackgroundStyle> BackgroundStyles { get; }
 
+        public IAvaloniaReadOnlyList<AnimationProfileChoice> AnimationProfiles { get; }
+
         public ISukiToastManager ToastManager { get; }
         public ISukiDialogManager DialogManager { get; }
 
@@ -123,6 +131,18 @@ namespace SukiUI.Demo
         public void ChangeTheme(SukiColorTheme theme)
         {
             _theme.ChangeColorTheme(theme);
+        }
+
+        public void UseAnimationProfile(AnimationProfileChoice choice)
+        {
+            SukiAnimationTheme.Use(choice.Profile);
+            foreach (var profile in AnimationProfiles)
+                profile.IsSelected = ReferenceEquals(profile, choice);
+
+            ToastManager.CreateSimpleInfoToast()
+                .WithTitle("Animation Mode")
+                .WithContent($"Animation profile set to {choice.DisplayName}.")
+                .Queue();
         }
 
         [RelayCommand]
@@ -216,5 +236,16 @@ namespace SukiUI.Demo
         {
             _theming.BackgroundTransitions = value;
         }
+    }
+
+    /// <summary>A selectable global animation profile for the demo's "Animation Mode" menu:
+    /// a display name over the <see cref="SukiAnimationProfile"/> to hand to
+    /// <see cref="SukiAnimationTheme.Use"/>.</summary>
+    public sealed partial class AnimationProfileChoice(string displayName, SukiAnimationProfile profile) : ObservableObject
+    {
+        public string DisplayName { get; } = displayName;
+        public SukiAnimationProfile Profile { get; } = profile;
+
+        [ObservableProperty] private bool _isSelected;
     }
 }

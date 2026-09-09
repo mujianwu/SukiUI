@@ -1,65 +1,61 @@
 namespace SukiUI.ControlsAnimation
 {
-    /// <summary>
-    /// XAML-selectable dialog feels.
-    /// </summary>
     public enum SukiDialogPreset
     {
         Default
     }
 
-    /// <summary>
-    /// Calibrated constants of the dialog's open / close / pinned-shake chain, one profile
-    /// per <see cref="SukiDialogPreset"/>. The open motion is a size-calibrated spring
-    /// (small dialogs bounce, big dialogs do not), driven by Avalonia Transitions +
-    /// <c>SukiSpringEaseOut</c>; the pinned-background shake is a real damped spring
-    /// integrated frame by frame on <see cref="SukiTicker"/> (see <see cref="SukiDialogPhysics"/>).
-    /// </summary>
-    /// <remarks>
-    /// Size-based spring calibration: dialog "mass" grows with its area, so bigger dialogs
-    /// get a slower, more damped spring and a smaller scale travel, while small ones are
-    /// allowed to be toy-like. The damping ramp is curved (<see cref="DampingCurveExponent"/>)
-    /// so mid-size dialogs keep noticeably more bounce than a linear ramp would leave them,
-    /// and only truly large dialogs go overdamped — no rebound at all, never longer than small.
-    /// </remarks>
     public sealed record SukiDialogProfile(
-        // Size-based spring calibration breakpoints.
+        // dialog area at or below which the responsive spring opens on its fastest, snappiest calibration
         double SmallDialogArea,
+        // dialog area at or above which it opens on its slowest, most damped calibration
         double LargeDialogArea,
+        // exponent curving the size -> damping ramp (higher keeps mid-size dialogs bouncier)
         double DampingCurveExponent,
-        // Emergence pose (open) — always rises from below by EmergenceVertical, pointer steers horizontal only.
+        // how far below its rest place the dialog rises from on open (and sinks back to on close)
         double EmergenceVertical,
+        // how far toward the summoning click the emerge can pull the open horizontally
         double EmergenceHorizontalMax,
-        // Open spring: lerp between small and large, linearly for omega, curved (sizeT^exp) for the rest.
+        // open transform duration for a small dialog (ms)
         double OpenTransformDurationSmallMs,
+        // open transform duration for a large dialog (ms)
         double OpenTransformDurationLargeMs,
+        // open spring omega for a small dialog
         double OpenOmegaSmall,
+        // open spring omega for a large dialog
         double OpenOmegaLarge,
+        // damping ratio for a small dialog at the open (below 1 lets it bounce, 1 is critically damped)
         double OpenZetaSmall,
+        // damping ratio for a large dialog at the open (above 1 settles it with no rebound)
         double OpenZetaLarge,
+        // scale the small dialog opens from
         double OpenFromScaleSmall,
+        // scale the large dialog opens from
         double OpenFromScaleLarge,
+        // opacity fade-in duration on open (ms)
         int OpenOpacityDurationMs,
-        // Close pose: sinks straight back down by EmergenceVertical.
+        // scale the dialog closes toward (sinks back below the rest pose)
         double CloseScale,
-        // Depth-of-field blur: same radius at both blurred ends of life, 0 at rest, animated on the surface.
+        // depth-of-field blur radius at the blurred start/end of life (0 = no blur)
         double BlurredRadius,
+        // blur transition duration on the dialog surface (ms)
         int SurfaceTransitionDurationMs,
-        // Glass overlay fade, decoupled from the content's choreography.
+        // backdrop glass fade duration (ms)
         int GlassFadeMilliseconds,
-        // Pinned-dialog shake: a real spring given an initial velocity (impulse, not keyframes).
+        // angular frequency of the pinned-dialog shake spring
         double ShakeOmega,
+        // damping of the pinned-dialog shake spring (higher = fewer swings)
         double ShakeDecay,
+        // initial velocity kicked into a pinned-dialog shake
         double ShakeImpulse,
+        // distance from rest below which a shake stops (px)
         double ShakeSettleDelta,
+        // speed below which a shake stops (px per second)
         double ShakeSettleVelocity)
     {
-        /// <summary>
-        /// Default feel: the historical calibration of SukiDialogHost. Small dialogs
-        /// (~280x170) replay the button's release spring (omega 16 rad/s / duration 650ms)
-        /// with a bit more damping (zeta 0.53, ~14% rebound); large ones (~700x495)
-        /// go overdamped (zeta &gt; 1) with less travel. Shake: zeta 0.30, ~4 visible swings.
-        /// </summary>
+        #region Normal
+
+        // Small dialogs bounce lively (~14% overshoot), large ones land heavy with no rebound; a pinned shake swings ~4 visible times.
         public static readonly SukiDialogProfile Default = new(
             SmallDialogArea: 48_000.0,
             LargeDialogArea: 346_000.0,
@@ -85,16 +81,35 @@ namespace SukiUI.ControlsAnimation
             ShakeSettleDelta: 0.5,
             ShakeSettleVelocity: 10.0);
 
-        /// <summary>
-        /// Resolves the XAML-selectable preset to its calibrated profile. Every enum
-        /// member is listed explicitly — when adding a member, add its case here and
-        /// keep names and calibrations in sync; invalid enum values throw.
-        /// </summary>
-#pragma warning disable CS8524 // the exhaustive member list is intentional; unnamed enum values throw
-        public static SukiDialogProfile For(SukiDialogPreset preset) => preset switch
+        public static readonly SukiPresetTable<SukiDialogPreset, SukiDialogProfile> Normal =
+            new((SukiDialogPreset.Default, Default));
+
+        #endregion
+
+        #region Lite
+
+        // Short, tight rise with no rebound, no blur and quick fades; the pinned shake is snappier and dies faster.
+        public static readonly SukiDialogProfile DefaultLite = Default with
         {
-            SukiDialogPreset.Default => Default,
+            EmergenceVertical = 24.0,
+            EmergenceHorizontalMax = 1,
+            OpenTransformDurationSmallMs = 500.0,
+            OpenTransformDurationLargeMs = 400.0,
+            OpenZetaSmall = 1.0,
+            OpenZetaLarge = 1.3,
+            OpenFromScaleSmall = 0.9,
+            OpenFromScaleLarge = 0.95,
+            OpenOpacityDurationMs = 150,
+            BlurredRadius = 0.0,
+            SurfaceTransitionDurationMs = 250,
+            GlassFadeMilliseconds = 220,
+            ShakeDecay = 24.0,
+            ShakeImpulse = 200.0,
         };
-#pragma warning restore CS8524
+
+        public static readonly SukiPresetTable<SukiDialogPreset, SukiDialogProfile> Lite =
+            new((SukiDialogPreset.Default, DefaultLite));
+
+        #endregion
     }
 }
